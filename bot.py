@@ -1,12 +1,17 @@
 import os
+import random
 import asyncio
 from flask import Flask, request
 from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
 )
+
+# ================= CONFIG =================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 RENDER_URL = os.getenv("RENDER_EXTERNAL_URL")
@@ -15,7 +20,8 @@ app = Flask(__name__)
 
 telegram_app = Application.builder().token(BOT_TOKEN).build()
 
-# Default emoji list
+# ================= EMOJI LIST =================
+
 EMOJIS = [
     "👍",
     "❤️",
@@ -29,39 +35,42 @@ EMOJIS = [
     "⚡",
 ]
 
-# ================= START =================
+# ================= ADMIN CHECK =================
+
+async def is_admin(update, context):
+    try:
+        member = await context.bot.get_chat_member(
+            update.effective_chat.id,
+            update.effective_user.id,
+        )
+
+        return member.status in [
+            "creator",
+            "administrator",
+        ]
+
+    except:
+        return False
+
+# ================= COMMANDS =================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     await update.message.reply_text(
-        "✅ Auto Reaction Bot is working!"
+        "✅ Auto Emoji Bot is working!"
     )
 
-# ================= SHOW EMOJIS =================
 
 async def show_emojis(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
+
     await update.message.reply_text(
         "Current emojis:\n\n"
         + " ".join(EMOJIS)
     )
 
-# ================= ADMIN CHECK =================
-
-async def is_admin(update, context):
-
-    member = await context.bot.get_chat_member(
-        update.effective_chat.id,
-        update.effective_user.id,
-    )
-
-    return member.status in [
-        "creator",
-        "administrator",
-    ]
-
-# ================= ADD EMOJI =================
 
 async def add_emoji(
     update: Update,
@@ -88,7 +97,6 @@ async def add_emoji(
         f"✅ Added: {emoji}"
     )
 
-# ================= REMOVE EMOJI =================
 
 async def remove_emoji(
     update: Update,
@@ -111,6 +119,43 @@ async def remove_emoji(
     await update.message.reply_text(
         f"❌ Removed: {emoji}"
     )
+
+# ================= AUTO EMOJI =================
+
+async def auto_emoji(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+
+    if not update.message:
+        return
+
+    try:
+
+        # Commands ignore
+        if (
+            update.message.text
+            and update.message.text.startswith("/")
+        ):
+            return
+
+        emoji = random.choice(EMOJIS)
+
+        await update.message.reply_text(
+            emoji
+        )
+
+        print(
+            "EMOJI:",
+            emoji,
+        )
+
+    except Exception as e:
+
+        print(
+            "EMOJI ERROR:",
+            e,
+        )
 
 # ================= HANDLERS =================
 
@@ -142,11 +187,19 @@ telegram_app.add_handler(
     )
 )
 
+telegram_app.add_handler(
+    MessageHandler(
+        filters.TEXT,
+        auto_emoji,
+    )
+)
+
 # ================= FLASK =================
 
 @app.route("/")
 def home():
-    return "Bot Running"
+    return "Auto Emoji Bot Running"
+
 
 @app.route(
     f"/{BOT_TOKEN}",
