@@ -1,14 +1,11 @@
 import os
-import random
 import asyncio
 from flask import Flask, request
-from telegram import Update, ReactionTypeEmoji
+from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
     ContextTypes,
-    filters,
 )
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -32,9 +29,28 @@ EMOJIS = [
     "⚡",
 ]
 
+# ================= START =================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "✅ Auto Reaction Bot is working!"
+    )
+
+# ================= SHOW EMOJIS =================
+
+async def show_emojis(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    await update.message.reply_text(
+        "Current emojis:\n\n"
+        + " ".join(EMOJIS)
+    )
+
 # ================= ADMIN CHECK =================
 
 async def is_admin(update, context):
+
     member = await context.bot.get_chat_member(
         update.effective_chat.id,
         update.effective_user.id,
@@ -45,20 +61,12 @@ async def is_admin(update, context):
         "administrator",
     ]
 
-# ================= COMMANDS =================
+# ================= ADD EMOJI =================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "✅ Auto Reaction Bot is working!"
-    )
-
-async def show_emojis(update, context):
-    await update.message.reply_text(
-        "Current emojis:\n\n"
-        + " ".join(EMOJIS)
-    )
-
-async def add_emoji(update, context):
+async def add_emoji(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
 
     global EMOJIS
 
@@ -77,10 +85,15 @@ async def add_emoji(update, context):
         EMOJIS.append(emoji)
 
     await update.message.reply_text(
-        f"Added: {emoji}"
+        f"✅ Added: {emoji}"
     )
 
-async def remove_emoji(update, context):
+# ================= REMOVE EMOJI =================
+
+async def remove_emoji(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
 
     global EMOJIS
 
@@ -96,43 +109,8 @@ async def remove_emoji(update, context):
         EMOJIS.remove(emoji)
 
     await update.message.reply_text(
-        f"Removed: {emoji}"
+        f"❌ Removed: {emoji}"
     )
-
-# ================= AUTO REACTION =================
-
-async def auto_reaction(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-):
-
-    if not update.message:
-        return
-
-    try:
-
-        emoji = random.choice(EMOJIS)
-
-        await context.bot.set_message_reaction(
-            chat_id=update.effective_chat.id,
-            message_id=update.message.message_id,
-            reaction=[
-                ReactionTypeEmoji(
-                    emoji=emoji
-                )
-            ],
-        )
-
-        print(
-            "REACTION:",
-            emoji,
-        )
-
-    except Exception as e:
-        print(
-            "REACTION ERROR:",
-            e,
-        )
 
 # ================= HANDLERS =================
 
@@ -164,18 +142,11 @@ telegram_app.add_handler(
     )
 )
 
-telegram_app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        auto_reaction,
-    )
-)
-
-# ================= WEBHOOK =================
+# ================= FLASK =================
 
 @app.route("/")
 def home():
-    return "Auto Reaction Bot Running"
+    return "Bot Running"
 
 @app.route(
     f"/{BOT_TOKEN}",
@@ -215,13 +186,20 @@ async def startup():
 
     await telegram_app.start()
 
-    await telegram_app.bot.set_webhook(
+    webhook_url = (
         f"{RENDER_URL}/{BOT_TOKEN}"
     )
 
-    print(
-        "Webhook set!"
+    await telegram_app.bot.set_webhook(
+        webhook_url
     )
+
+    print(
+        "Webhook:",
+        webhook_url,
+    )
+
+# ================= MAIN =================
 
 if __name__ == "__main__":
 
